@@ -1,6 +1,9 @@
 #include <algorithm>
+#include <cstddef>
 #include <iostream>
 #include<fstream>
+#include <regex>
+#include <sstream>
 #include <string>
 #include <type_traits>
 #include <vector>
@@ -40,7 +43,7 @@ ParseData AuthCountParse(string filepath) {
     ifstream file ( filepath);
     if (file.is_open()) {
         while (getline(file , line)) {
-        if (line == "Успешная Авторизация") { // лог при авторизации
+        if (line.find("Successfully logged in")!= string::npos) { // лог при авторизации
             result.count++;
         }
         }
@@ -51,40 +54,84 @@ ParseData AuthCountParse(string filepath) {
 
 ParseData RegCountParse(string filepath) {
      ParseData result;
+    
      string line;
     
     ifstream file ( filepath);
     if (file.is_open()) {
         while (getline(file , line)) {
-        if (line == "Успешная Регистрация") { // лог при реге
+        if (line.find("New user created ")!= string::npos) { // лог при реге
             result.count++;
         }
         }
     }
+        
     file.close();
      return result;
 }
 
 ParseData WarningParse(string filepath) {
-     ParseData result;
-     string line;
-     ifstream file (filepath);
-     if (file.is_open()) {
-        while (getline(file , line)) {
-        if (line.find("Warn")!= string::npos || line.find("Error")!= string::npos ) { // искать содержит ли варн или  error
-            result.data.push_back(line);
+    ParseData result;
+    ifstream file(filepath);
+    
+    if (!file.is_open()) {
+        cout << "Ошибка: не удалось открыть файл " << filepath << endl;
+        return result;
+    }
+
+    string line;
+    string currentError;
+    bool collectingError = false;
+
+    while (getline(file, line)) {
+        
+        bool isNewError = (line.find("warn:") != string::npos) ||
+                         (line.find("fail:") != string::npos) ||
+                         (line.find("error:") != string::npos);
+
+        if (isNewError) {
+            
+            if (!currentError.empty()) {
+                result.data.push_back(currentError);
+            }
+            
+            currentError = line;
+            collectingError = true;
         }
+        else if (collectingError) {
+            
+            if (!line.empty()) {
+                
+                if (line[0] == ' ' || line[0] == '\t') {
+                    currentError += "\n" + line;
+                } else {
+                    
+                    result.data.push_back(currentError);
+                    currentError.clear();
+                    collectingError = false;
+                }
+            }
         }
     }
-     return result;
-}
 
+  
+    if (!currentError.empty()) {
+        result.data.push_back(currentError);
+    }
+
+    file.close();
+    return result;
+}
 int main() {
     string skip;
     int filenumber;
+    bool repeat = true;
     cout<<"Добро Пожаловать \n Для сканирования директории введите любой символ ..."<<endl;
     cin>>skip;
     cout<<"Начинаем Сканирование"<<endl;
+    while (repeat) {
+    
+    
     ScanData check = Scan();
     if(check.success == true) {
         cout<<"Найдены следующие файлы :" <<endl;
@@ -135,8 +182,20 @@ int main() {
             
         
     }
+
     else {
         cout<<"Не удалось просканировать папку . Проверьте её " << LogsDirectoryPath<<endl;
     }
+     char choice;
+        cout << "\nХотите выполнить еще один анализ? (y/n): ";
+        cin >> choice;
+        
+        if(choice != 'y' && choice != 'Y') {
+            repeat = false;
+            cout << "Выход из программы. До свидания!" << endl;
+        }
+        cout << endl; 
+    }
+
     return 0;
 }
