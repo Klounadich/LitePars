@@ -1,16 +1,15 @@
-#include <algorithm>
-#include <cstddef>
+
 #include <iostream>
 #include<fstream>
-#include <regex>
-#include <sstream>
 #include <string>
-#include <type_traits>
 #include <vector>
 #include <map>
 #include <filesystem>
+#include <algorithm>
 using namespace std;
 const string LogsDirectoryPath="/home/klounadich/dev/other/logs";
+const string SolutionArchivePath = "/home/klounadich/dev/other/Archive.txt";
+
 
 struct ScanData {
     bool success =false;
@@ -24,6 +23,37 @@ struct ParseData {
     
 
 };
+
+string SearchSolution(string active_error) {
+    string line;
+    ifstream file(SolutionArchivePath);
+    
+    if (file.is_open()) {
+        vector<string> lines;
+        
+        while(getline(file, line)) {
+            lines.push_back(line);
+        }
+        file.close();
+        
+        
+        vector<string>::iterator it = find_if(lines.begin(), lines.end(), [&]( string& archive_line) {
+            
+            return archive_line.find(active_error) != string::npos || 
+                   active_error.find(archive_line) != string::npos;
+        });
+        
+        if (it != lines.end()) {
+            cout << "Найдено решение: " << *it << endl;
+            return *it;
+        }
+    }
+    
+    return ""; 
+}
+
+
+
 ScanData Scan() {
     ScanData result;
     int counter = 0;
@@ -70,14 +100,11 @@ ParseData RegCountParse(string filepath) {
      return result;
 }
 
+
+
 ParseData WarningParse(string filepath) {
     ParseData result;
     ifstream file(filepath);
-    
-    if (!file.is_open()) {
-        cout << "Ошибка: не удалось открыть файл " << filepath << endl;
-        return result;
-    }
 
     string line;
     string currentError;
@@ -169,7 +196,22 @@ int main() {
                 if( !result.data.empty()) {
                     for(int i=0 ; i< result.data.size() ; i++) {
                         cout<<result.data.at(i) <<endl;
+                        string check = SearchSolution(result.data.at(i));
+                        if(!check.empty()) {
+                            cout<<"Увидеть предложенное решение ? (y/n)"<<endl;
+                            char choice;
+                            cin >>choice;
+                            if( choice== 'y'||'Y') {
+                                cout<<check<<endl;
+                            }
+                        }
+                        if(i+1 < result.data.size()) {
+                        cout<<"Найдено ещё " << result.data.size() -i+1<< "\n Ввведите любой символ для вывода следующей ошибки"<< endl;
+                        cin>> skip;
+                        }
                     }
+                    // cюда
+
                 }
                 else {
                     cout<<" Не найденного ни одного предупреждения или ошибки"<<endl;
