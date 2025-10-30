@@ -1,11 +1,11 @@
 
+#include <cstddef>
 #include <iostream>
 #include<fstream>
 #include <string>
 #include <vector>
 #include <map>
 #include <filesystem>
-#include <algorithm>
 using namespace std;
 const string LogsDirectoryPath="/home/klounadich/dev/other/logs";
 const string SolutionArchivePath = "/home/klounadich/dev/other/Archive.txt";
@@ -28,25 +28,21 @@ string SearchSolution(string active_error) {
     string line;
     ifstream file(SolutionArchivePath);
     
-    if (file.is_open()) {
-        vector<string> lines;
-        
-        while(getline(file, line)) {
-            lines.push_back(line);
+    if (file.is_open()) {  
+        while (getline(file, line)) {
+            size_t point = line.find("|");
+            if(point != string::npos) {
+                string error_text = line.substr(0, point);
+                string solution = line.substr(point + 1);  
+                solution.erase(0, solution.find_first_not_of(" \t"));
+                solution.erase(solution.find_last_not_of(" \t") + 1);
+
+                if(active_error.find(error_text) != string::npos) {
+                    return solution;
+                }
+            }
         }
         file.close();
-        
-        
-        vector<string>::iterator it = find_if(lines.begin(), lines.end(), [&]( string& archive_line) {
-            
-            return archive_line.find(active_error) != string::npos || 
-                   active_error.find(archive_line) != string::npos;
-        });
-        
-        if (it != lines.end()) {
-            cout << "Найдено решение: " << *it << endl;
-            return *it;
-        }
     }
     
     return ""; 
@@ -195,22 +191,26 @@ int main() {
                 result = WarningParse(check.logsfiles.at(filenumber));
                 if( !result.data.empty()) {
                     for(int i=0 ; i< result.data.size() ; i++) {
+                        cout<<"=========================================================================================="<<endl;
                         cout<<result.data.at(i) <<endl;
                         string check = SearchSolution(result.data.at(i));
                         if(!check.empty()) {
+                            cout<<"---------------------------------------------------"<<endl;
+                            cout<<"Ваша ошибка найдена в списке уже решённых проблем"<<endl;
                             cout<<"Увидеть предложенное решение ? (y/n)"<<endl;
                             char choice;
                             cin >>choice;
-                            if( choice== 'y'||'Y') {
-                                cout<<check<<endl;
+                            if( choice== 'y'|| choice =='Y') {
+                                cout<<"||ОТВЕТ ИЗ АРХИВА: "<<check<<" ||"<<endl;
                             }
+                        
                         }
                         if(i+1 < result.data.size()) {
-                        cout<<"Найдено ещё " << result.data.size() -i+1<< "\n Ввведите любой символ для вывода следующей ошибки"<< endl;
+                        cout<<"Найдено ещё " << result.data.size() -i-1<< "\n Ввведите любой символ для вывода следующей ошибки"<< endl;
                         cin>> skip;
                         }
                     }
-                    // cюда
+                    
 
                 }
                 else {
